@@ -1,0 +1,66 @@
+{
+  "name": "crm-immobilier",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx scripts/with-db.ts -- next dev",
+    "build": "prisma generate && next build",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "start": "next start",
+    "lint": "eslint",
+    "setup": "npm install && npm run db:migrate && npm run db:seed",
+    "db": "tsx scripts/with-db.ts",
+    "db:migrate": "tsx scripts/with-db.ts -- prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "tsx scripts/with-db.ts -- prisma db seed",
+    "db:reset": "node -e \"require('node:fs').rmSync('.pgdata',{recursive:true,force:true})\" && npm run db:deploy:local && npm run db:seed",
+    "db:deploy:local": "tsx scripts/with-db.ts -- prisma migrate deploy",
+    "db:studio": "tsx scripts/with-db.ts -- prisma studio",
+    "postinstall": "prisma generate"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^2.11.3",
+    "@prisma/client": "6.19.3",
+    "bcryptjs": "^3.0.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "googleapis": "^178.0.0",
+    "lucide-react": "^1.39.0",
+    "luxon": "^3.7.2",
+    "next": "16.3.4",
+    "next-auth": "^5.0.0-beta.32",
+    "prisma": "6.19.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "resend": "^6.25.0",
+    "server-only": "^0.0.1",
+    "stripe": "^22.6.1",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/luxon": "^3.7.5",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "embedded-postgres": "^18.4.0-beta.17",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.4",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.13",
+    "typescript": "^5"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "unrs-resolver@1.12.2": true,
+    "@embedded-postgres/darwin-arm64@18.4.0-beta.17": true,
+    "fsevents@2.3.3": true,
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "prisma@6.19.3": true
+  }
+}

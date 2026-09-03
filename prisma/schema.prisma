@@ -1,0 +1,274 @@
+// CRM Photographe / Vidéaste immobilier — schéma de données
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Connexion directe (non poolée) pour les migrations — Supabase, etc.
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Utilisateur (propriétaire du CRM — compte unique pour l'instant)
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Réglages (singleton : une seule ligne, id = 1)
+// ---------------------------------------------------------------------------
+
+model Settings {
+  id Int @id @default(1)
+
+  // Coordonnées entreprise (factures)
+  businessName    String @default("")
+  businessEmail   String @default("")
+  businessPhone   String @default("")
+  businessAddress String @default("")
+  gstNumber       String @default("") // n° TPS
+  qstNumber       String @default("") // n° TVQ
+
+  // Agenda & disponibilités
+  timezone           String  @default("America/Toronto")
+  bufferBeforeMin    Int     @default(0)
+  bufferAfterMin     Int     @default(30)
+  minLeadTimeHours   Int     @default(24)
+  bookingHorizonDays Int     @default(60)
+  slotIntervalMin    Int     @default(30)
+
+  // Réservation publique
+  autoConfirm          Boolean @default(false)
+  publicBookingEnabled Boolean @default(true)
+  bookingIntroText     String  @default("")
+
+  // Taxes (pourcentage, ex. 5.0000 = 5 %)
+  gstRate      Decimal @default(5.0) @db.Decimal(7, 4)
+  qstRate      Decimal @default(9.975) @db.Decimal(7, 4)
+  taxesEnabled Boolean @default(true)
+
+  // Facturation
+  invoiceDueDays      Int    @default(14)
+  paymentInstructions String @default("")
+
+  // Stripe (phase 3)
+  stripeGstTaxRateId String?
+  stripeQstTaxRateId String?
+
+  // Google Calendar (phase 4)
+  googleRefreshToken    String?
+  googleConnectedEmail  String?
+  googleCalendarId      String?
+  googleBusyCalendarIds String[] @default([])
+
+  // Numérotation des factures — format AAAA-NNN
+  invoiceSeqYear Int @default(0)
+  invoiceNextSeq Int @default(1)
+
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Clients
+// ---------------------------------------------------------------------------
+
+model Client {
+  id               String   @id @default(cuid())
+  name             String
+  company          String?
+  email            String
+  phone            String?
+  billingAddress   String?
+  notes            String?
+  stripeCustomerId String?
+  archived         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  bookings Booking[]
+  invoices Invoice[]
+
+  @@index([name])
+  @@index([email])
+}
+
+// ---------------------------------------------------------------------------
+// Forfaits
+// ---------------------------------------------------------------------------
+
+enum MediaType {
+  PHOTO
+  VIDEO
+  PHOTO_VIDEO
+}
+
+model Package {
+  id             String    @id @default(cuid())
+  name           String
+  description    String?
+  mediaType      MediaType @default(PHOTO)
+  durationMin    Int
+  priceCents     Int
+  color          String    @default("#6366f1")
+  deliverables   String?
+  active         Boolean   @default(true)
+  onlineBookable Boolean   @default(true)
+  sortOrder      Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  bookings Booking[]
+}
+
+// ---------------------------------------------------------------------------
+// Rendez-vous / séances
+// ---------------------------------------------------------------------------
+
+enum BookingStatus {
+  REQUESTED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum BookingSource {
+  MANUAL
+  CLIENT
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  client          Client        @relation(fields: [clientId], references: [id])
+  clientId        String
+  package         Package?      @relation(fields: [packageId], references: [id])
+  packageId       String?
+  propertyAddress String
+  startAt         DateTime
+  endAt           DateTime
+  status          BookingStatus @default(REQUESTED)
+  source          BookingSource @default(MANUAL)
+  notes           String?
+  googleEventId   String?
+  reminderSentAt  DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  invoice Invoice?
+
+  @@index([startAt])
+  @@index([status])
+  @@index([clientId])
+}
+
+// ---------------------------------------------------------------------------
+// Disponibilités (agenda du photographe)
+// ---------------------------------------------------------------------------
+
+// weekday : convention Luxon — 1 = lundi … 7 = dimanche
+model AvailabilityRule {
+  id           String   @id @default(cuid())
+  weekday      Int
+  startMinutes Int // minutes depuis minuit, heure locale
+  endMinutes   Int
+  createdAt    DateTime @default(now())
+
+  @@index([weekday])
+}
+
+enum ExceptionType {
+  BLOCKED
+  CUSTOM_HOURS
+}
+
+model AvailabilityException {
+  id           String        @id @default(cuid())
+  date         DateTime      @db.Date
+  type         ExceptionType @default(BLOCKED)
+  startMinutes Int?
+  endMinutes   Int?
+  note         String?
+  createdAt    DateTime      @default(now())
+
+  @@unique([date])
+}
+
+// ---------------------------------------------------------------------------
+// Facturation (phase 3)
+// ---------------------------------------------------------------------------
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  VOID
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  // Attribué à la finalisation (format AAAA-NNN) ; null tant que brouillon.
+  number          String?       @unique
+  client          Client        @relation(fields: [clientId], references: [id])
+  clientId        String
+  booking         Booking?      @relation(fields: [bookingId], references: [id])
+  bookingId       String?       @unique
+  status          InvoiceStatus @default(DRAFT)
+  currency        String        @default("cad")
+  subtotalCents   Int           @default(0)
+  gstCents        Int           @default(0)
+  qstCents        Int           @default(0)
+  totalCents      Int           @default(0)
+  amountPaidCents Int           @default(0)
+  issuedAt        DateTime?
+  dueAt           DateTime?
+  paidAt          DateTime?
+  notes           String?
+  stripeInvoiceId String?       @unique
+  hostedInvoiceUrl String?
+  publicToken     String        @unique @default(cuid())
+  lastReminderAt  DateTime?
+  reminderCount   Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  lineItems InvoiceLineItem[]
+  payments  Payment[]
+
+  @@index([clientId])
+  @@index([status])
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId   String
+  description String
+  quantity    Int     @default(1)
+  unitCents   Int
+  amountCents Int
+  sortOrder   Int     @default(0)
+}
+
+model Payment {
+  id                    String   @id @default(cuid())
+  invoice               Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId             String
+  amountCents           Int
+  method                String   @default("stripe")
+  stripePaymentIntentId String?
+  paidAt                DateTime @default(now())
+  createdAt             DateTime @default(now())
+
+  @@index([invoiceId])
+}
