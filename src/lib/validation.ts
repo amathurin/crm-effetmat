@@ -30,8 +30,8 @@ export const packageSchema = z.object({
   durationMin: z.coerce
     .number()
     .int()
-    .min(15, "Durée minimale : 15 minutes.")
-    .max(24 * 60),
+    .min(5, "Durée minimale : 5 minutes.")
+    .max(12 * 60, "Durée maximale : 12 heures."),
   priceCents: z.number().int().min(0),
   color: z
     .string()

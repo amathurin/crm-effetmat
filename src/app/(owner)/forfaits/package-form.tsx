@@ -61,16 +61,23 @@ export function PackageForm({ pkg }: { pkg?: PackageDefaults }) {
           label="Durée (minutes)"
           htmlFor="durationMin"
           error={fe.durationMin}
+          hint="N'importe quelle valeur (ex. 15, 30, 45, 90, 120…). Sert au calcul de l'heure de fin et à l'espacement des créneaux."
         >
           <Input
             id="durationMin"
             name="durationMin"
             type="number"
-            min={15}
-            step={15}
+            min={5}
+            step={5}
+            list="duree-frequentes"
             defaultValue={pkg?.durationMin ?? 60}
             required
           />
+          <datalist id="duree-frequentes">
+            {[15, 30, 45, 60, 90, 120, 150, 180].map((d) => (
+              <option key={d} value={d} />
+            ))}
+          </datalist>
         </Field>
         <Field label="Prix (avant taxes)" htmlFor="price" error={fe.priceCents}>
           <Input
