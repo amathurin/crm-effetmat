@@ -14,10 +14,10 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email },
-    update: { name },
+    update: { name, passwordHash },
     create: { email, name, passwordHash },
   });
-  console.log(`✓ Propriétaire : ${email} / ${password}`);
+  console.log(`✓ Propriétaire : ${email} (mot de passe mis à jour)`);
 
   // --- Réglages ------------------------------------------------------------
   await prisma.settings.upsert({
@@ -49,6 +49,13 @@ async function main() {
       })),
     });
     console.log("✓ Disponibilités : lun–ven 9 h–17 h");
+  }
+
+  // Données de démonstration (forfaits + clients + rendez-vous) : uniquement en
+  // développement. En production, lancer le seed sans SEED_DEMO=true.
+  if (process.env.SEED_DEMO !== "true") {
+    console.log("→ SEED_DEMO absent : compte + réglages + disponibilités seulement.");
+    return;
   }
 
   // --- Forfaits ----------------------------------------------------------
