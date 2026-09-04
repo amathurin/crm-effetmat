@@ -20,8 +20,19 @@ DATABASE_URL="postgresql://postgres.xxxx:[MOT_DE_PASSE]@aws-0-....pooler.supabas
 DIRECT_URL="postgresql://postgres.xxxx:[MOT_DE_PASSE]@aws-0-....pooler.supabase.com:5432/postgres"
 ```
 
-Les migrations s'appliquent automatiquement au build Vercel (`vercel-build` →
-`prisma migrate deploy`, qui utilise `DIRECT_URL`).
+### Migrations
+
+Les migrations **ne** s'appliquent **pas** automatiquement au build (le pooler
+Supabase n'est pas fiable pendant un build). Après chaque changement de schéma,
+avant de pousser sur `main`, lancer depuis ta machine :
+
+```bash
+DATABASE_URL="<transaction pooler 6543 + ?pgbouncer=true&connection_limit=1>" \
+DIRECT_URL="<session pooler 5432>" \
+npx prisma migrate deploy
+```
+
+(Les 5 migrations initiales sont déjà appliquées.)
 
 ### Premier remplissage (compte propriétaire)
 
@@ -30,7 +41,8 @@ compte une fois depuis ta machine, en pointant sur Supabase :
 
 ```bash
 SEED_DEMO=false \
-DATABASE_URL="<session pooler 5432>" DIRECT_URL="<session pooler 5432>" \
+DATABASE_URL="<transaction pooler 6543 + ?pgbouncer=true&connection_limit=1>" \
+DIRECT_URL="<session pooler 5432>" \
 SEED_OWNER_EMAIL="alexandre@effetmat.com" SEED_OWNER_PASSWORD="<mot de passe fort>" \
 SEED_OWNER_NAME="Alexandre" npx tsx prisma/seed.ts
 ```

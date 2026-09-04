@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx scripts/with-db.ts -- next dev",
     "build": "prisma generate && next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "setup": "npm install && npm run db:migrate && npm run db:seed",
