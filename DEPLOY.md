@@ -29,14 +29,17 @@ Les migrations s'appliquent automatiquement au build Vercel (`vercel-build` →
 compte une fois depuis ta machine, en pointant sur Supabase :
 
 ```bash
+SEED_DEMO=false \
 DATABASE_URL="<session pooler 5432>" DIRECT_URL="<session pooler 5432>" \
 SEED_OWNER_EMAIL="alexandre@effetmat.com" SEED_OWNER_PASSWORD="<mot de passe fort>" \
 SEED_OWNER_NAME="Alexandre" npx tsx prisma/seed.ts
 ```
 
-Sans `SEED_DEMO=true`, le seed crée uniquement le compte propriétaire, les
-réglages et les disponibilités par défaut (lun–ven 9 h–17 h) — aucune donnée
-fictive. Il est idempotent : relançable sans risque.
+`SEED_DEMO=false` est **important** : sans lui, le fichier `.env` local (qui
+contient `SEED_DEMO="true"`) ajouterait des forfaits et clients fictifs. Avec, le
+seed crée uniquement le compte propriétaire, les réglages et les disponibilités
+par défaut (lun–ven 9 h–17 h). Il est idempotent — relancer le rejoue et met à
+jour le mot de passe du compte.
 
 ---
 
