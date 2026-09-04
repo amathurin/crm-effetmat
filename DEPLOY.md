@@ -110,6 +110,19 @@ Sans `RESEND_API_KEY`, les emails sont seulement journalisés (utile en pré-pro
 
 ---
 
+## Dépannage
+
+- **Toutes les pages « base de données » renvoient 500 alors que le build a
+  réussi** → moteur Prisma manquant pour le runtime. Le schéma déclare déjà
+  `binaryTargets = ["native", "rhel-openssl-3.0.x"]` ; si Vercel change de
+  runtime, ajuster cette liste puis redéployer.
+- **Un changement de variable d'environnement ne prend pas effet** → il faut
+  **redéployer** (Deployments → ⋯ → Redeploy). Vercel ne relit pas les variables
+  à chaud.
+- **Connexion refusée / « password authentication failed »** → vérifier que le
+  mot de passe dans `DATABASE_URL` / `DIRECT_URL` est **URL-encodé** (`%` → `%25`,
+  `@` → `%40`, etc.).
+
 ## Checklist post-déploiement
 
 - [ ] Connexion à `/connexion` avec le compte seedé
