@@ -1,6 +1,7 @@
 import "server-only";
 import { DateTime } from "luxon";
 import { googleBusyIntervals } from "@/lib/google";
+import { travelMinutesBatch } from "@/lib/maps";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 
@@ -20,7 +21,12 @@ export type DaySlots = {
 };
 
 /** Prestation à réserver : durée + battement propre (0 = visioconférence). */
-export type SlotTarget = { durationMin: number; bufferMin: number };
+export type SlotTarget = {
+  durationMin: number;
+  bufferMin: number;
+  /** Adresse de la propriété — permet d'ajuster le battement au trajet réel. */
+  propertyAddress?: string | null;
+};
 
 type Window = { start: number; end: number }; // minutes depuis minuit
 
@@ -39,7 +45,6 @@ async function loadContext(target: SlotTarget, horizonDays?: number) {
   );
   const rangeEnd = now.plus({ days: horizon }).endOf("day");
   const defaultBufferMs = settings.bufferAfterMin * 60_000;
-  const targetBufferMs = target.bufferMin * 60_000;
 
   const [rules, exceptions, bookings] = await Promise.all([
     prisma.availabilityRule.findMany(),
@@ -60,16 +65,36 @@ async function loadContext(target: SlotTarget, horizonDays?: number) {
       select: {
         startAt: true,
         endAt: true,
+        propertyAddress: true,
         package: { select: { bufferMin: true } },
       },
     }),
   ]);
 
-  // Chaque rendez-vous « occupe » sa durée + son propre battement (déplacement).
-  const busy = bookings.map((b) => ({
-    from: b.startAt.getTime(),
-    to: b.endAt.getTime() + (b.package?.bufferMin ?? settings.bufferAfterMin) * 60_000,
-  }));
+  // Trajet réel (Google Maps) entre l'adresse de la prestation candidate et
+  // celle de chaque rendez-vous existant, si une clé API est configurée.
+  const propertyAddress = target.propertyAddress?.trim() || null;
+  const travelMinutesByAddress = propertyAddress
+    ? await travelMinutesBatch(
+        propertyAddress,
+        bookings.map((b) => b.propertyAddress),
+      )
+    : new Map<string, number>();
+
+  // Chaque rendez-vous « occupe » sa durée + le battement nécessaire de part
+  // et d'autre : au minimum le plus grand des deux battements (le rendez-vous
+  // déjà réservé et la prestation candidate), ou le trajet réel si connu et
+  // plus long (ex. Québec → Lévis vs. deux adresses voisines).
+  const busy = bookings.map((b) => {
+    const bookedBuffer = b.package?.bufferMin ?? settings.bufferAfterMin;
+    const fixedGap = Math.max(bookedBuffer, target.bufferMin);
+    const travel = travelMinutesByAddress.get(b.propertyAddress);
+    const gapMs = Math.max(fixedGap, travel ?? 0) * 60_000;
+    return {
+      from: b.startAt.getTime() - gapMs,
+      to: b.endAt.getTime() + gapMs,
+    };
+  });
 
   // Périodes occupées de Google Calendar (si connecté) — battement par défaut.
   const googleBusy = await googleBusyIntervals(
@@ -77,7 +102,7 @@ async function loadContext(target: SlotTarget, horizonDays?: number) {
     rangeEnd.toUTC().toJSDate(),
   );
   for (const g of googleBusy) {
-    busy.push({ from: g.from, to: g.to + defaultBufferMs });
+    busy.push({ from: g.from - defaultBufferMs, to: g.to + defaultBufferMs });
   }
 
   const exceptionByDay = new Map(
@@ -99,10 +124,10 @@ async function loadContext(target: SlotTarget, horizonDays?: number) {
       .map((r) => ({ start: r.startMinutes, end: r.endMinutes }));
   };
 
-  // Le créneau candidat réserve [start, end + son battement]. Il entre en
-  // conflit si cet intervalle chevauche la période occupée d'un rendez-vous.
+  // Chaque période « occupée » inclut déjà le battement des deux côtés :
+  // un créneau candidat entre en conflit dès qu'il chevauche cette période.
   const slotConflicts = (startMs: number, endMs: number) =>
-    busy.some((b) => startMs < b.to && endMs + targetBufferMs > b.from);
+    busy.some((b) => startMs < b.to && endMs > b.from);
 
   return {
     settings,

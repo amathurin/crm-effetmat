@@ -16,11 +16,13 @@ export function BookingFlow({
   packageId,
   packageName,
   durationMin,
+  propertyAddress,
   days,
 }: {
   packageId: string;
   packageName: string;
   durationMin: number;
+  propertyAddress: string;
   days: DaySlots[];
 }) {
   const [selected, setSelected] = useState<SelectedSlot | null>(null);
@@ -113,13 +115,18 @@ export function BookingFlow({
             {selected.dayLabel} · {selected.timeLabel}
           </p>
           <p className="text-sm text-text-muted">{packageName}</p>
+          <p className="mt-1 text-xs text-text-muted">{propertyAddress}</p>
         </CardContent>
       </Card>
 
       <form action={action} className="flex flex-col gap-4">
         <input type="hidden" name="packageId" value={packageId} />
         <input type="hidden" name="start" value={selected.start} />
+        <input type="hidden" name="propertyAddress" value={propertyAddress} />
         <FormError>{state.error}</FormError>
+        {state.fieldErrors?.propertyAddress ? (
+          <FormError>{state.fieldErrors.propertyAddress}</FormError>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Nom complet" htmlFor="name" error={state.fieldErrors?.name}>
@@ -132,19 +139,6 @@ export function BookingFlow({
             <Input id="phone" name="phone" type="tel" />
           </Field>
         </div>
-
-        <Field
-          label="Adresse de la propriété"
-          htmlFor="propertyAddress"
-          error={state.fieldErrors?.propertyAddress}
-        >
-          <Input
-            id="propertyAddress"
-            name="propertyAddress"
-            placeholder="123 rue Principale, Montréal, QC"
-            required
-          />
-        </Field>
 
         <Field label="Précisions (facultatif)" htmlFor="notes">
           <Textarea

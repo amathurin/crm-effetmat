@@ -57,6 +57,7 @@ export async function createPublicBooking(
     !(await isSlotBookable(start, {
       durationMin: pkg.durationMin,
       bufferMin: pkg.bufferMin,
+      propertyAddress: parsed.data.propertyAddress,
     }))
   ) {
     return {

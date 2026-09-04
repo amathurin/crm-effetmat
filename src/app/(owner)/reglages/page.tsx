@@ -1,6 +1,7 @@
 import { DateTime } from "luxon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { mapsEnabled } from "@/lib/maps";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 import { stripeEnabled } from "@/lib/stripe";
@@ -61,6 +62,28 @@ export default async function ReglagesPage({
       </Card>
 
       <GoogleCalendarCard notice={googleNotice} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Trajet réel (Google Maps)</CardTitle>
+          <span
+            className={
+              mapsEnabled()
+                ? "text-xs font-medium text-success"
+                : "text-xs font-medium text-text-muted"
+            }
+          >
+            {mapsEnabled() ? "Connecté" : "Non configuré"}
+          </span>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-text-muted">
+            {mapsEnabled()
+              ? "Le battement entre deux séances est ajusté au temps de trajet réel (Google Maps) quand il dépasse le battement fixe du forfait."
+              : "Ajoutez GOOGLE_MAPS_API_KEY dans .env (API Distance Matrix activée, facturation Google Cloud requise) pour ajuster automatiquement le battement au trajet réel entre deux adresses. Sans elle, seul le battement fixe du forfait s'applique."}
+          </p>
+        </CardContent>
+      </Card>
 
       <SettingsForm
         settings={{
