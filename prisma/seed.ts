@@ -104,6 +104,16 @@ async function main() {
           onlineBookable: false,
           sortOrder: 4,
         },
+        {
+          name: "Consultation (visio)",
+          description: "Appel de préparation avant la séance. En visioconférence.",
+          mediaType: "PHOTO",
+          durationMin: 30,
+          bufferMin: 0,
+          priceCents: 0,
+          color: "#5f6b64",
+          sortOrder: 5,
+        },
       ],
     });
     console.log("✓ 4 forfaits d'exemple");

@@ -26,6 +26,7 @@ type Defaults = {
   qstNumber: string;
   timezone: string;
   bufferAfterMin: number;
+  slotIntervalMin: number;
   minLeadTimeHours: number;
   bookingHorizonDays: number;
   autoConfirm: boolean;
@@ -194,10 +195,31 @@ export function SettingsForm({ settings }: { settings: Defaults }) {
 
           <div className="grid gap-4 sm:grid-cols-3">
             <Field
-              label="Pause entre les séances (min)"
+              label="Pas de l'horaire (min)"
+              htmlFor="slotIntervalMin"
+              error={fe.slotIntervalMin}
+              hint="Granularité des créneaux proposés : 15 → 9:00, 9:15… ; 30 → 9:00, 9:30…"
+            >
+              <Input
+                id="slotIntervalMin"
+                name="slotIntervalMin"
+                type="number"
+                min={5}
+                step={5}
+                list="pas-frequents"
+                defaultValue={settings.slotIntervalMin}
+              />
+              <datalist id="pas-frequents">
+                {[15, 30, 60].map((d) => (
+                  <option key={d} value={d} />
+                ))}
+              </datalist>
+            </Field>
+            <Field
+              label="Battement par défaut (min)"
               htmlFor="bufferAfterMin"
               error={fe.bufferAfterMin}
-              hint="Rangement + déplacement. Détermine aussi l'espacement des créneaux : chaque créneau proposé = durée du forfait + cette pause."
+              hint="Pré-rempli sur les nouveaux forfaits ; s'applique aussi aux événements Google. Le battement réel se règle par forfait."
             >
               <Input
                 id="bufferAfterMin"

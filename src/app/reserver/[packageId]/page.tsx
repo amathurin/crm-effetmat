@@ -28,7 +28,10 @@ export default async function ReserverPackagePage({
   const pkg = await prisma.package.findUnique({ where: { id: packageId } });
   if (!pkg || !pkg.active || !pkg.onlineBookable) notFound();
 
-  const { days } = await getAvailability(pkg.durationMin);
+  const { days } = await getAvailability({
+    durationMin: pkg.durationMin,
+    bufferMin: pkg.bufferMin,
+  });
 
   return (
     <div className="flex flex-col gap-6">

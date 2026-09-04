@@ -19,13 +19,16 @@ export type DaySlots = {
   slots: Slot[];
 };
 
+/** Prestation à réserver : durée + battement propre (0 = visioconférence). */
+export type SlotTarget = { durationMin: number; bufferMin: number };
+
 type Window = { start: number; end: number }; // minutes depuis minuit
 
 function exceptionKey(date: Date): string {
   return DateTime.fromJSDate(date, { zone: "utc" }).toFormat("yyyy-MM-dd");
 }
 
-async function loadContext(durationMin: number, horizonDays?: number) {
+async function loadContext(target: SlotTarget, horizonDays?: number) {
   const settings = await getSettings();
   const tz = settings.timezone;
   const now = DateTime.now().setZone(tz);
@@ -35,6 +38,8 @@ async function loadContext(durationMin: number, horizonDays?: number) {
     settings.bookingHorizonDays,
   );
   const rangeEnd = now.plus({ days: horizon }).endOf("day");
+  const defaultBufferMs = settings.bufferAfterMin * 60_000;
+  const targetBufferMs = target.bufferMin * 60_000;
 
   const [rules, exceptions, bookings] = await Promise.all([
     prisma.availabilityRule.findMany(),
@@ -52,24 +57,27 @@ async function loadContext(durationMin: number, horizonDays?: number) {
         endAt: { gte: earliest.toUTC().toJSDate() },
         startAt: { lte: rangeEnd.toUTC().toJSDate() },
       },
-      select: { startAt: true, endAt: true },
+      select: {
+        startAt: true,
+        endAt: true,
+        package: { select: { bufferMin: true } },
+      },
     }),
   ]);
 
-  // Pause entre deux séances (temps de rangement / déplacement).
-  const gapMs = settings.bufferAfterMin * 60_000;
+  // Chaque rendez-vous « occupe » sa durée + son propre battement (déplacement).
   const busy = bookings.map((b) => ({
-    from: b.startAt.getTime() - gapMs,
-    to: b.endAt.getTime() + gapMs,
+    from: b.startAt.getTime(),
+    to: b.endAt.getTime() + (b.package?.bufferMin ?? settings.bufferAfterMin) * 60_000,
   }));
 
-  // Périodes occupées de Google Calendar (si connecté).
+  // Périodes occupées de Google Calendar (si connecté) — battement par défaut.
   const googleBusy = await googleBusyIntervals(
     now.toUTC().toJSDate(),
     rangeEnd.toUTC().toJSDate(),
   );
   for (const g of googleBusy) {
-    busy.push({ from: g.from - gapMs, to: g.to + gapMs });
+    busy.push({ from: g.from, to: g.to + defaultBufferMs });
   }
 
   const exceptionByDay = new Map(
@@ -91,13 +99,10 @@ async function loadContext(durationMin: number, horizonDays?: number) {
       .map((r) => ({ start: r.startMinutes, end: r.endMinutes }));
   };
 
-  // Un créneau candidat [s, e] entre en conflit si [s, e] chevauche la période
-  // « occupée » d'un rendez-vous, déjà élargie de la pause de part et d'autre.
+  // Le créneau candidat réserve [start, end + son battement]. Il entre en
+  // conflit si cet intervalle chevauche la période occupée d'un rendez-vous.
   const slotConflicts = (startMs: number, endMs: number) =>
-    busy.some((b) => startMs < b.to && endMs > b.from);
-
-  // Pas entre deux créneaux proposés : durée de la séance + une pause.
-  const stepMin = durationMin + settings.bufferAfterMin;
+    busy.some((b) => startMs < b.to && endMs + targetBufferMs > b.from);
 
   return {
     settings,
@@ -107,18 +112,18 @@ async function loadContext(durationMin: number, horizonDays?: number) {
     horizon,
     windowsForDay,
     slotConflicts,
-    stepMin,
-    durationMin,
+    durationMin: target.durationMin,
+    stepMin: Math.max(5, settings.slotIntervalMin),
   };
 }
 
-/** Créneaux disponibles pour une prestation d'une durée donnée. */
+/** Créneaux disponibles pour une prestation. */
 export async function getAvailability(
-  durationMin: number,
+  target: SlotTarget,
   horizonDays?: number,
 ): Promise<{ tz: string; days: DaySlots[] }> {
-  const ctx = await loadContext(durationMin, horizonDays);
-  const { tz, now, earliest, stepMin } = ctx;
+  const ctx = await loadContext(target, horizonDays);
+  const { tz, now, earliest, stepMin, durationMin } = ctx;
   const days: DaySlots[] = [];
 
   for (let i = 0; i <= ctx.horizon; i++) {
@@ -130,6 +135,7 @@ export async function getAvailability(
     const slots: Slot[] = [];
 
     for (const w of windows) {
+      // On aligne le pas sur l'heure d'ouverture de la plage.
       for (let m = w.start; m + durationMin <= w.end; m += stepMin) {
         const startLocal = day.plus({ minutes: m });
         if (startLocal < earliest) continue;
@@ -163,14 +169,12 @@ export async function getAvailability(
 
 /**
  * Revalidation côté serveur au moment de la réservation (anti-course).
- * Vérifie que `start` tombe dans une plage de travail, respecte le délai
- * minimum et n'entre pas en conflit avec un rendez-vous existant.
  */
 export async function isSlotBookable(
   start: Date,
-  durationMin: number,
+  target: SlotTarget,
 ): Promise<boolean> {
-  const ctx = await loadContext(durationMin);
+  const ctx = await loadContext(target);
   const startLocal = DateTime.fromJSDate(start, { zone: ctx.tz });
   if (!startLocal.isValid) return false;
   if (startLocal < ctx.earliest) return false;
@@ -181,12 +185,12 @@ export async function isSlotBookable(
   if (!windows) return false;
 
   const minutes = startLocal.diff(day, "minutes").minutes;
-  const endMinutes = minutes + durationMin;
+  const endMinutes = minutes + target.durationMin;
   const inWindow = windows.some(
     (w) => minutes >= w.start && endMinutes <= w.end,
   );
   if (!inWindow) return false;
 
-  const endLocal = startLocal.plus({ minutes: durationMin });
+  const endLocal = startLocal.plus({ minutes: target.durationMin });
   return !ctx.slotConflicts(startLocal.toMillis(), endLocal.toMillis());
 }

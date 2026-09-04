@@ -14,6 +14,7 @@ type PackageDefaults = {
   description?: string | null;
   mediaType?: string;
   durationMin?: number;
+  bufferMin?: number;
   priceCents?: number;
   color?: string;
   deliverables?: string | null;
@@ -45,7 +46,7 @@ export function PackageForm({ pkg }: { pkg?: PackageDefaults }) {
         />
       </Field>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Type" htmlFor="mediaType" error={fe.mediaType}>
           <Select
             id="mediaType"
@@ -61,7 +62,7 @@ export function PackageForm({ pkg }: { pkg?: PackageDefaults }) {
           label="Durée (minutes)"
           htmlFor="durationMin"
           error={fe.durationMin}
-          hint="N'importe quelle valeur (ex. 15, 30, 45, 90, 120…). Sert au calcul de l'heure de fin et à l'espacement des créneaux."
+          hint="Toute valeur (15, 30, 45, 90…). Sert à l'heure de fin et à l'espacement des créneaux."
         >
           <Input
             id="durationMin"
@@ -78,6 +79,22 @@ export function PackageForm({ pkg }: { pkg?: PackageDefaults }) {
               <option key={d} value={d} />
             ))}
           </datalist>
+        </Field>
+        <Field
+          label="Battement après (minutes)"
+          htmlFor="bufferMin"
+          error={fe.bufferMin}
+          hint="Temps de déplacement / rangement laissé après cette séance. Mets 0 pour une rencontre en visioconférence."
+        >
+          <Input
+            id="bufferMin"
+            name="bufferMin"
+            type="number"
+            min={0}
+            step={5}
+            defaultValue={pkg?.bufferMin ?? 30}
+            required
+          />
         </Field>
         <Field label="Prix (avant taxes)" htmlFor="price" error={fe.priceCents}>
           <Input

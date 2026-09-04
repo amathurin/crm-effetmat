@@ -121,6 +121,9 @@ model Package {
   description    String?
   mediaType      MediaType @default(PHOTO)
   durationMin    Int
+  // Battement requis après une séance de ce forfait (déplacement / rangement).
+  // 0 pour une rencontre en visioconférence.
+  bufferMin      Int       @default(30)
   priceCents     Int
   color          String    @default("#6366f1")
   deliverables   String?

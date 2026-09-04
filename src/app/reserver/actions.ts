@@ -53,7 +53,12 @@ export async function createPublicBooking(
     return { error: "Créneau invalide, veuillez en choisir un autre." };
   }
 
-  if (!(await isSlotBookable(start, pkg.durationMin))) {
+  if (
+    !(await isSlotBookable(start, {
+      durationMin: pkg.durationMin,
+      bufferMin: pkg.bufferMin,
+    }))
+  ) {
     return {
       error: "Ce créneau vient d'être réservé. Merci d'en choisir un autre.",
       fieldErrors: { start: "Créneau indisponible." },

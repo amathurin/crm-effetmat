@@ -34,6 +34,7 @@ export async function saveBusinessSettings(
     qstNumber: str(formData, "qstNumber"),
     timezone: str(formData, "timezone"),
     bufferAfterMin: str(formData, "bufferAfterMin"),
+    slotIntervalMin: str(formData, "slotIntervalMin"),
     minLeadTimeHours: str(formData, "minLeadTimeHours"),
     bookingHorizonDays: str(formData, "bookingHorizonDays"),
     autoConfirm: bool(formData, "autoConfirm"),

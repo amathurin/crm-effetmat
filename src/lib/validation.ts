@@ -32,6 +32,7 @@ export const packageSchema = z.object({
     .int()
     .min(5, "Durée minimale : 5 minutes.")
     .max(12 * 60, "Durée maximale : 12 heures."),
+  bufferMin: z.coerce.number().int().min(0).max(240),
   priceCents: z.number().int().min(0),
   color: z
     .string()
@@ -101,8 +102,11 @@ export const businessSettingsSchema = z.object({
   gstNumber: z.string().trim().default(""),
   qstNumber: z.string().trim().default(""),
   timezone: z.string().trim().min(1),
-  // Pause entre deux séances (rangement / déplacement).
+  // Battement par défaut (déplacement) — pré-remplit les nouveaux forfaits et
+  // s'applique aux événements Google.
   bufferAfterMin: z.coerce.number().int().min(0).max(480),
+  // Granularité de l'horaire proposé aux clients (9:00, 9:30, 10:00…).
+  slotIntervalMin: z.coerce.number().int().min(5).max(240),
   minLeadTimeHours: z.coerce.number().int().min(0).max(720),
   bookingHorizonDays: z.coerce.number().int().min(1).max(365),
   autoConfirm: z.boolean().default(false),

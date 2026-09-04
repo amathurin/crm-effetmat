@@ -72,6 +72,7 @@ export default async function ReglagesPage({
           qstNumber: settings.qstNumber,
           timezone: settings.timezone,
           bufferAfterMin: settings.bufferAfterMin,
+          slotIntervalMin: settings.slotIntervalMin,
           minLeadTimeHours: settings.minLeadTimeHours,
           bookingHorizonDays: settings.bookingHorizonDays,
           autoConfirm: settings.autoConfirm,

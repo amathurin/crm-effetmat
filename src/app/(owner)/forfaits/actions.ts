@@ -26,6 +26,7 @@ export async function savePackage(
     description: str(formData, "description"),
     mediaType: str(formData, "mediaType"),
     durationMin: str(formData, "durationMin"),
+    bufferMin: str(formData, "bufferMin"),
     priceCents,
     color: str(formData, "color") || "#6366f1",
     deliverables: str(formData, "deliverables"),
