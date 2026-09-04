@@ -25,11 +25,9 @@ type Defaults = {
   gstNumber: string;
   qstNumber: string;
   timezone: string;
-  bufferBeforeMin: number;
   bufferAfterMin: number;
   minLeadTimeHours: number;
   bookingHorizonDays: number;
-  slotIntervalMin: number;
   autoConfirm: boolean;
   publicBookingEnabled: boolean;
   bookingIntroText: string;
@@ -196,43 +194,18 @@ export function SettingsForm({ settings }: { settings: Defaults }) {
 
           <div className="grid gap-4 sm:grid-cols-3">
             <Field
-              label="Battement avant (min)"
-              htmlFor="bufferBeforeMin"
-              error={fe.bufferBeforeMin}
-            >
-              <Input
-                id="bufferBeforeMin"
-                name="bufferBeforeMin"
-                type="number"
-                min={0}
-                defaultValue={settings.bufferBeforeMin}
-              />
-            </Field>
-            <Field
-              label="Battement après (min)"
+              label="Pause entre les séances (min)"
               htmlFor="bufferAfterMin"
               error={fe.bufferAfterMin}
+              hint="Rangement + déplacement. Détermine aussi l'espacement des créneaux : chaque créneau proposé = durée du forfait + cette pause."
             >
               <Input
                 id="bufferAfterMin"
                 name="bufferAfterMin"
                 type="number"
                 min={0}
-                defaultValue={settings.bufferAfterMin}
-              />
-            </Field>
-            <Field
-              label="Créneaux (min)"
-              htmlFor="slotIntervalMin"
-              error={fe.slotIntervalMin}
-            >
-              <Input
-                id="slotIntervalMin"
-                name="slotIntervalMin"
-                type="number"
-                min={5}
                 step={5}
-                defaultValue={settings.slotIntervalMin}
+                defaultValue={settings.bufferAfterMin}
               />
             </Field>
             <Field

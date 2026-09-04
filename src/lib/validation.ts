@@ -101,11 +101,10 @@ export const businessSettingsSchema = z.object({
   gstNumber: z.string().trim().default(""),
   qstNumber: z.string().trim().default(""),
   timezone: z.string().trim().min(1),
-  bufferBeforeMin: z.coerce.number().int().min(0).max(480),
+  // Pause entre deux séances (rangement / déplacement).
   bufferAfterMin: z.coerce.number().int().min(0).max(480),
   minLeadTimeHours: z.coerce.number().int().min(0).max(720),
   bookingHorizonDays: z.coerce.number().int().min(1).max(365),
-  slotIntervalMin: z.coerce.number().int().min(5).max(240),
   autoConfirm: z.boolean().default(false),
   publicBookingEnabled: z.boolean().default(true),
   bookingIntroText: z.string().trim().default(""),

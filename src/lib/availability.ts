@@ -56,11 +56,11 @@ async function loadContext(durationMin: number, horizonDays?: number) {
     }),
   ]);
 
-  const bufBefore = settings.bufferBeforeMin * 60_000;
-  const bufAfter = settings.bufferAfterMin * 60_000;
+  // Pause entre deux séances (temps de rangement / déplacement).
+  const gapMs = settings.bufferAfterMin * 60_000;
   const busy = bookings.map((b) => ({
-    from: b.startAt.getTime() - bufBefore,
-    to: b.endAt.getTime() + bufAfter,
+    from: b.startAt.getTime() - gapMs,
+    to: b.endAt.getTime() + gapMs,
   }));
 
   // Périodes occupées de Google Calendar (si connecté).
@@ -69,7 +69,7 @@ async function loadContext(durationMin: number, horizonDays?: number) {
     rangeEnd.toUTC().toJSDate(),
   );
   for (const g of googleBusy) {
-    busy.push({ from: g.from - bufBefore, to: g.to + bufAfter });
+    busy.push({ from: g.from - gapMs, to: g.to + gapMs });
   }
 
   const exceptionByDay = new Map(
@@ -91,8 +91,13 @@ async function loadContext(durationMin: number, horizonDays?: number) {
       .map((r) => ({ start: r.startMinutes, end: r.endMinutes }));
   };
 
+  // Un créneau candidat [s, e] entre en conflit si [s, e] chevauche la période
+  // « occupée » d'un rendez-vous, déjà élargie de la pause de part et d'autre.
   const slotConflicts = (startMs: number, endMs: number) =>
-    busy.some((b) => startMs - bufBefore < b.to && endMs + bufAfter > b.from);
+    busy.some((b) => startMs < b.to && endMs > b.from);
+
+  // Pas entre deux créneaux proposés : durée de la séance + une pause.
+  const stepMin = durationMin + settings.bufferAfterMin;
 
   return {
     settings,
@@ -102,6 +107,7 @@ async function loadContext(durationMin: number, horizonDays?: number) {
     horizon,
     windowsForDay,
     slotConflicts,
+    stepMin,
     durationMin,
   };
 }
@@ -112,7 +118,7 @@ export async function getAvailability(
   horizonDays?: number,
 ): Promise<{ tz: string; days: DaySlots[] }> {
   const ctx = await loadContext(durationMin, horizonDays);
-  const { settings, tz, now, earliest } = ctx;
+  const { tz, now, earliest, stepMin } = ctx;
   const days: DaySlots[] = [];
 
   for (let i = 0; i <= ctx.horizon; i++) {
@@ -124,11 +130,7 @@ export async function getAvailability(
     const slots: Slot[] = [];
 
     for (const w of windows) {
-      for (
-        let m = w.start;
-        m + durationMin <= w.end;
-        m += settings.slotIntervalMin
-      ) {
+      for (let m = w.start; m + durationMin <= w.end; m += stepMin) {
         const startLocal = day.plus({ minutes: m });
         if (startLocal < earliest) continue;
 
